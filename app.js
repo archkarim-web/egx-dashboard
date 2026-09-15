@@ -4,6 +4,7 @@
 const TARGET_PRICE_OUTLIER_THRESHOLD_PERCENT = 30;
 const RECOMMENDATION_LABELS = { buy: "شراء", hold: "احتفاظ", watch: "مراقبة", sell: "بيع", take_partial_profit: "جني أرباح جزئي", full_exit: "خروج كامل", re_entry: "دخول جديد" };
 const RECOMMENDATION_BADGE_CLASS = { buy: "badge-buy", hold: "badge-hold", watch: "badge-watch", sell: "badge-sell", take_partial_profit: "badge-watch", full_exit: "badge-sell", re_entry: "badge-buy" };
+const LOGIC_TYPE_LABELS = { "فني": "فني", "مالي_أساسي": "مالي أساسي", "تعلم_ذاتي": "تعلم ذاتي", "مجمع": "مجمع" };
 
 function escapeHtml(str) {
   if (str === null || str === undefined) return "";
@@ -247,6 +248,44 @@ function renderRecommendations(data) {
   container.innerHTML = data.entities.map((e, i) => entityCardHtml(e, data.max_history_shown, i)).join("");
 }
 
+function patternRoleBadgeHtml(role) {
+  if (role === "قائد") return `<span class="badge badge-role-leading">🚀 قائد — دخول مبكر</span>`;
+  if (role === "تابع") return `<span class="badge badge-role-lagging">↩️ تابع — رد فعل</span>`;
+  return "";
+}
+function triggerIndicatorsHtml(indicators) {
+  if (!indicators || !indicators.length) return `<div class="muted">لا توجد مؤشرات تفعيل مسجّلة</div>`;
+  return `<ul>${indicators.map(t => `<li>${escapeHtml(t.indicator || "")} <span class="muted">(${escapeHtml(t.data_source || "")})</span></li>`).join("")}</ul>`;
+}
+function patternCardHtml(p) {
+  const rateText = p.success_rate_percent !== null && p.success_rate_percent !== undefined
+    ? `${p.success_rate_percent}% (${p.validated_count || 0} حالة مُقيَّمة)`
+    : "— (لا حالات مُقيَّمة بعد)";
+  return `<div class="card">
+    <div class="head" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+      <div>
+        <strong>${escapeHtml(p.pattern_name || p.pattern_id)}</strong>
+        <span class="muted">(${escapeHtml(p.pattern_id)})</span>
+        <div class="muted">${escapeHtml(p.status_label || "—")} — ${escapeHtml(LOGIC_TYPE_LABELS[p.logic_type] || p.logic_type || "")}${p.action_type ? " — الإجراء: " + escapeHtml(PATTERN_ACTION_LABELS[p.action_type] || p.action_type) : ""}</div>
+        <div style="margin-top:4px;">${patternRoleBadgeHtml(p.pattern_role)}</div>
+      </div>
+      <div class="muted">
+        نسبة النجاح: <strong>${rateText}</strong>
+        <br/>آخر تفعيل: ${p.last_activation ? escapeHtml(p.last_activation) : "لا يوجد بعد"}
+      </div>
+    </div>
+    <p>${escapeHtml(p.description || "")}</p>
+    ${triggerIndicatorsHtml(p.trigger_indicators)}
+  </div>`;
+}
+function renderPatterns(data) {
+  const container = document.getElementById("patterns-container");
+  if (!container) return;
+  const list = data.patterns || [];
+  if (!list.length) { container.innerHTML = `<div class="empty-state">لا يوجد أي نمط في الأرشيف بعد</div>`; return; }
+  container.innerHTML = list.map(patternCardHtml).join("");
+}
+
 // ---- تشغيل ----
 async function boot() {
   const res = await fetch("data.json?t=" + Date.now()); // منع أي كاش للبيانات — لازم كل زيارة تجيب أحدث نسخة
@@ -257,5 +296,6 @@ async function boot() {
   renderIndices(data);
   renderLatestReport(data);
   renderRecommendations(data);
+  renderPatterns(data);
 }
 boot();
