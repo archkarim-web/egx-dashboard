@@ -249,7 +249,7 @@ function renderRecommendations(data) {
 
 // ---- تشغيل ----
 async function boot() {
-  const res = await fetch("data.json");
+  const res = await fetch("data.json?t=" + Date.now()); // منع أي كاش للبيانات — لازم كل زيارة تجيب أحدث نسخة
   const data = await res.json();
   const label = document.getElementById("generated-at-label");
   if (label) label.textContent = data.generated_at;
