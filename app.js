@@ -201,7 +201,7 @@ function activePatternsCompactHtml(activePatterns) {
       ${p.action_detail ? `<div class="muted" style="margin-top:6px;">${escapeHtml(p.action_detail)}</div>` : ""}
     </div>`).join("")}</div>`;
 }
-function entityCardHtml(entity, maxHistoryShown) {
+function entityCardHtml(entity, maxHistoryShown, cardIndex) {
   const recs = entity.recommendations || [];
   const latest = recs.length ? recs[recs.length - 1] : null;
   const successRate = computeSuccessRate(recs);
@@ -213,21 +213,38 @@ function entityCardHtml(entity, maxHistoryShown) {
   const limit = maxHistoryShown || 5;
   const recentSlice = recs.slice(-limit);
   const moreNote = recs.length > limit ? `<div class="muted" style="margin-top:6px;">و${recs.length - limit} توصية أقدم في الأرشيف الكامل بالنظام.</div>` : "";
+  const historyId = `history-${cardIndex}`;
+  const toggleId = `toggle-${cardIndex}`;
+  const openLabel = `عرض آخر ${Math.min(limit, recs.length)} توصيات ▾`;
+  // زرار عرض/إخفاء محلي بالكامل داخل الصفحة (مجرد إظهار/إخفاء عنصر بجافاسكريبت) — مفيهوش أي نداء
+  // لأي سيرفر أو أمر، بس تفاعل عرض بحت زي أي أكورديون في أي موقع
+  const historySection = recs.length ? `
+    <button type="button" class="btn-toggle-history" id="${toggleId}" data-open-label="${escapeHtml(openLabel)}" onclick="toggleHistory('${historyId}', '${toggleId}')" style="margin-top:14px;">${openLabel}</button>
+    <div id="${historyId}" style="display:none; margin-top:10px;">
+      ${recTable(recentSlice)}
+      ${moreNote}
+    </div>` : "";
   return `<div class="card">
     <div class="head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
       <h3 style="margin:0;">${escapeHtml(entity.name)}</h3><span class="muted">${rateText}</span>
     </div>
     ${chartHtml}${latestHtml}${performanceHtml}${patternsHtml}
-    <div class="muted" style="margin-top:14px; margin-bottom:6px;">آخر ${Math.min(limit, recs.length)} توصيات:</div>
-    ${recTable(recentSlice)}
-    ${moreNote}
+    ${historySection}
   </div>`;
+}
+function toggleHistory(historyId, toggleId) {
+  const box = document.getElementById(historyId);
+  const btn = document.getElementById(toggleId);
+  if (!box || !btn) return;
+  const isHidden = box.style.display === "none";
+  box.style.display = isHidden ? "block" : "none";
+  btn.textContent = isHidden ? "إخفاء التوصيات ▴" : btn.dataset.openLabel;
 }
 function renderRecommendations(data) {
   const container = document.getElementById("recs-container");
   if (!container) return;
   if (!data.entities.length) { container.innerHTML = `<div class="empty-state">لا يوجد أسهم أو مؤشرات أو صفقة ذهب متابَعة بعد</div>`; return; }
-  container.innerHTML = data.entities.map(e => entityCardHtml(e, data.max_history_shown)).join("");
+  container.innerHTML = data.entities.map((e, i) => entityCardHtml(e, data.max_history_shown, i)).join("");
 }
 
 // ---- تشغيل ----
