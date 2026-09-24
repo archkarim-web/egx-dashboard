@@ -286,6 +286,107 @@ function renderPatterns(data) {
   container.innerHTML = list.map(patternCardHtml).join("");
 }
 
+// ---- المحفظة الافتراضية (تطوير 21) -- عرض فقط، بدون أي زرار أو فورم أو حقل إدخال، بلا أي fetch
+// لأي endpoint حي (كل شيء جاي من data.json الثابت زي باقي الصفحة) ----
+const ORDER_SIDE_LABELS = { buy: "شراء", sell: "بيع" };
+const ACTION_TYPE_LABELS = { buy_order: "أمر شراء", sell_order: "أمر بيع", cancel_order: "إلغاء أمر", liquidation: "تصفية" };
+const PORTFOLIO_ARCHIVE_SHOWN = 15; // بدون زرار "عرض المزيد" -- أحدث 15 إجراء بس، والباقي كنص فقط
+
+function portfolioOverviewStatsHtml(ov) {
+  return `<div class="stat-grid">
+    <div class="stat-box"><div class="label">رأس المال الأولي</div><div class="value">${fmtNum(ov.initial_capital)} ج.م</div></div>
+    <div class="stat-box"><div class="label">القيمة الإجمالية للمحفظة</div><div class="value">${fmtNum(ov.total_portfolio_value)} ج.م</div></div>
+    <div class="stat-box"><div class="label">الربح/الخسارة الكلية</div><div class="value ${pctClass(ov.total_pnl_percent)}">${fmtPct(ov.total_pnl_percent)}</div></div>
+    <div class="stat-box"><div class="label">السيولة المتاحة</div><div class="value">${fmtNum(ov.cash_available)} ج.م</div></div>
+    <div class="stat-box"><div class="label">السيولة المحجوزة بأوامر معلقة</div><div class="value">${fmtNum(ov.cash_reserved_by_pending_orders)} ج.م</div></div>
+    <div class="stat-box"><div class="label">إجمالي أوامر الشراء المعلقة</div><div class="value">${fmtNum(ov.pending_buy_orders_total)} ج.م</div></div>
+    <div class="stat-box"><div class="label">قيمة الأسهم المملوكة</div><div class="value">${fmtNum(ov.total_market_value)} ج.م</div></div>
+    <div class="stat-box"><div class="label">الجولة الحالية</div><div class="value">#${fmtNum(ov.round_number)}</div></div>
+  </div>
+  <div class="muted" style="margin-top:8px;">بداية الجولة الحالية: ${escapeHtml(ov.round_started_at || "—")}</div>`;
+}
+function portfolioStocksTableHtml(stocks) {
+  if (!stocks || !stocks.length) return `<div class="empty-state">لا توجد مراكز مفتوحة حاليًا</div>`;
+  const rows = stocks.map(s => `<tr>
+    <td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.ticker)}</td><td>${fmtNum(s.quantity)}</td>
+    <td>${fmtNum(s.avg_cost)}</td><td>${fmtNum(s.current_price)}</td><td>${fmtNum(s.market_value)} ج.م</td>
+    <td class="${pctClass(s.unrealized_pnl_percent)}">${fmtPct(s.unrealized_pnl_percent)}</td>
+    <td>${fmtPct(s.weight_percent)}${s.over_concentration_cap ? ' <span class="badge badge-outlier" title="تجاوز سقف التركيز 30%">⚠️</span>' : ""}</td>
+  </tr>`).join("");
+  return `<table><thead><tr><th>السهم</th><th>الرمز</th><th>الكمية</th><th>متوسط الشراء</th><th>السعر الحالي</th><th>القيمة السوقية</th><th>ربح/خسارة غير محقق</th><th>الوزن بالمحفظة</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function portfolioOrdersTableHtml(orders) {
+  if (!orders || !orders.length) return `<div class="empty-state">لا توجد أوامر معلقة حاليًا</div>`;
+  const rows = orders.map(o => `<tr>
+    <td>${escapeHtml(o.name)}</td><td>${escapeHtml(o.ticker)}</td>
+    <td>${escapeHtml(ORDER_SIDE_LABELS[o.side] || o.side)}</td><td>${escapeHtml(o.order_type || "—")}</td>
+    <td>${fmtNum(o.target_price)}</td><td>${fmtNum(o.quantity)}</td>
+  </tr>`).join("");
+  return `<table><thead><tr><th>السهم</th><th>الرمز</th><th>الاتجاه</th><th>نوع الأمر</th><th>السعر المستهدف</th><th>الكمية</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function portfolioActionsGroupHtml(title, entries) {
+  if (!entries || !entries.length) return "";
+  const rows = entries.map(e => `<tr><td>${escapeHtml(e.date)}</td><td>${escapeHtml(e.name)}</td><td>${escapeHtml(e.ticker)}</td><td>${fmtNum(e.quantity)}</td><td>${fmtNum(e.price)}</td><td>${escapeHtml(e.order_type || "—")}</td></tr>`).join("");
+  return `<div style="margin-top:10px;"><div class="muted" style="margin-bottom:4px;">${escapeHtml(title)}</div><table><thead><tr><th>التاريخ</th><th>السهم</th><th>الرمز</th><th>الكمية</th><th>السعر</th><th>ملاحظة</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function portfolioTodayActionsHtml(today, summaryText, summaryDate) {
+  const groups = [
+    portfolioActionsGroupHtml("أوامر الشراء", today.buy_orders),
+    portfolioActionsGroupHtml("أوامر البيع", today.sell_orders),
+    portfolioActionsGroupHtml("إلغاء أوامر", today.cancel_orders),
+  ].join("");
+  const summaryHtml = summaryText ? `<div class="muted" style="margin-top:10px;">ملخص أداء ${escapeHtml(summaryDate || "")}:</div><p>${escapeHtml(summaryText)}</p>` : "";
+  if (!groups && !summaryHtml) return `<div class="empty-state">لا توجد إجراءات مسجّلة اليوم</div>`;
+  return groups + summaryHtml;
+}
+function portfolioArchiveTableHtml(archive) {
+  if (!archive || !archive.length) return `<div class="empty-state">لا يوجد أرشيف إجراءات بعد</div>`;
+  const shown = archive.slice(0, PORTFOLIO_ARCHIVE_SHOWN);
+  const rows = shown.map(e => `<tr><td>${escapeHtml(e.date)}</td><td>${escapeHtml(ACTION_TYPE_LABELS[e.type] || e.type)}</td><td>${escapeHtml(e.name)}</td><td>${escapeHtml(e.ticker)}</td><td>${fmtNum(e.quantity)}</td><td>${fmtNum(e.price)}</td></tr>`).join("");
+  const moreNote = archive.length > PORTFOLIO_ARCHIVE_SHOWN ? `<div class="muted" style="margin-top:6px;">و${archive.length - PORTFOLIO_ARCHIVE_SHOWN} إجراء أقدم في الأرشيف الكامل بالنظام.</div>` : "";
+  return `<table><thead><tr><th>التاريخ</th><th>النوع</th><th>السهم</th><th>الرمز</th><th>الكمية</th><th>السعر</th></tr></thead><tbody>${rows}</tbody></table>${moreNote}`;
+}
+function portfolioClosedLotsTableHtml(lots) {
+  if (!lots || !lots.length) return `<div class="empty-state">لا توجد صفقات مقفولة بعد</div>`;
+  const sorted = [...lots].sort((a, b) => (b.closed_at || "").localeCompare(a.closed_at || ""));
+  const rows = sorted.map(l => `<tr>
+    <td>${escapeHtml(l.name)}</td><td>${escapeHtml(l.entry_strategy || "—")}</td>
+    <td>${fmtNum(l.entry_price)}</td><td>${fmtNum(l.exit_price)}</td><td>${fmtNum(l.quantity)}</td>
+    <td class="${pctClass(l.realized_pnl)}">${fmtNum(l.realized_pnl)} ج.م</td>
+    <td class="${pctClass(l.realized_pnl_percent)}">${fmtPct(l.realized_pnl_percent)}</td>
+    <td>${escapeHtml(l.closed_at || "—")}</td>
+  </tr>`).join("");
+  return `<table><thead><tr><th>السهم</th><th>الاستراتيجية</th><th>سعر الدخول</th><th>سعر الخروج</th><th>الكمية</th><th>الربح/الخسارة</th><th>النسبة</th><th>تاريخ الإغلاق</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function portfolioArchivedRoundsTableHtml(rounds) {
+  if (!rounds || !rounds.length) return "";
+  const rows = rounds.map(r => `<tr><td>#${fmtNum(r.round_number)}</td><td>${escapeHtml(r.round_started_at || "—")}</td><td>${escapeHtml(r.round_ended_at || "—")}</td><td>${fmtNum(r.initial_capital)} ج.م</td><td>${fmtNum(r.final_cash)} ج.م</td><td>${fmtNum(r.closed_lots_count)}</td></tr>`).join("");
+  return `<div class="card">
+    <h3 style="margin-top:0;">جولات سابقة (قبل آخر تصفية)</h3>
+    <table><thead><tr><th>الجولة</th><th>البداية</th><th>النهاية</th><th>رأس المال الأولي</th><th>السيولة النهائية</th><th>عدد الصفقات المقفولة</th></tr></thead><tbody>${rows}</tbody></table>
+  </div>`;
+}
+function renderPortfolio(data) {
+  const container = document.getElementById("portfolio-container");
+  if (!container) return;
+  const vp = data.virtual_portfolio;
+  if (!vp || !vp.initialized) {
+    container.innerHTML = `<div class="empty-state">المحفظة الافتراضية لسه مش مفعّلة.</div>`;
+    return;
+  }
+  const ov = vp.overview;
+  const at = vp.actions_table;
+  container.innerHTML = `
+    <div class="card">${portfolioOverviewStatsHtml(ov)}</div>
+    <div class="card"><h3 style="margin-top:0;">المراكز المفتوحة</h3>${portfolioStocksTableHtml(ov.stocks)}</div>
+    <div class="card"><h3 style="margin-top:0;">الأوامر المعلقة</h3>${portfolioOrdersTableHtml(ov.pending_orders)}</div>
+    <div class="card"><h3 style="margin-top:0;">إجراءات اليوم</h3>${portfolioTodayActionsHtml(at.today, at.daily_summary_text, at.daily_summary_date)}</div>
+    <div class="card"><h3 style="margin-top:0;">أرشيف الإجراءات</h3>${portfolioArchiveTableHtml(at.archive)}</div>
+    <div class="card"><h3 style="margin-top:0;">الصفقات المقفولة</h3>${portfolioClosedLotsTableHtml(vp.closed_lots)}</div>
+    ${portfolioArchivedRoundsTableHtml(vp.archived_rounds)}
+  `;
+}
+
 // ---- تشغيل ----
 async function boot() {
   const res = await fetch("data.json?t=" + Date.now()); // منع أي كاش للبيانات — لازم كل زيارة تجيب أحدث نسخة
@@ -297,5 +398,6 @@ async function boot() {
   renderLatestReport(data);
   renderRecommendations(data);
   renderPatterns(data);
+  renderPortfolio(data);
 }
 boot();
