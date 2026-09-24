@@ -41,6 +41,18 @@ function targetPriceOutlierBadgeHtml(deviationPercent) {
   const sign = n > 0 ? "+" : "";
   return `<span class="badge badge-outlier" title="فجوة متطرفة بين السعر المستهدف والسعر الحالي">⚠️ ${sign}${n.toFixed(0)}%</span>`;
 }
+// --- سطر نسب التغير تحت السعر (تطوير 27، 24 سبتمبر 2026) — يومي (عن الإغلاق السابق) وأسبوعي (عن
+// إغلاق آخر خميس)، بخط صغير وألوان أخضر/أحمر — لكل من كروت الأسهم والمؤشرات ---
+function priceChangesLineHtml(changes) {
+  if (!changes) return "";
+  const day = changes.vs_previous_close_percent;
+  const week = changes.vs_last_thursday_close_percent;
+  const parts = [];
+  if (day !== null && day !== undefined) parts.push(`<span class="${pctClass(day)}" title="التغير عن إغلاق الجلسة السابقة">يومي ${fmtPct(day)}</span>`);
+  if (week !== null && week !== undefined) parts.push(`<span class="${pctClass(week)}" title="التغير عن إغلاق آخر يوم خميس">أسبوعي ${fmtPct(week)}</span>`);
+  if (!parts.length) return "";
+  return `<div class="muted" style="font-size:11px; display:flex; gap:10px; margin-top:2px;">${parts.join("")}</div>`;
+}
 function sparklineSVG(values, width = 100, height = 32) {
   const nums = (values || []).filter((v) => typeof v === "number" && !Number.isNaN(v));
   if (nums.length < 2) return "";
@@ -138,6 +150,7 @@ function renderDashboard(data) {
           <div>
             <div class="price">${price ? fmtNum(price.close) + " ج.م" : "لا توجد بيانات سعر"}</div>
             <div class="muted">${price ? "بتاريخ " + escapeHtml(price.date) : ""}</div>
+            ${priceChangesLineHtml(s.price_changes)}
           </div>
           ${sparklineSVG(s.recent_closes)}
         </div>
@@ -157,7 +170,16 @@ function renderIndices(data) {
   box.innerHTML = indexEntities.map(idx => {
     const rec = (idx.recommendations && idx.recommendations.length) ? idx.recommendations[idx.recommendations.length - 1] : null;
     const chartHtml = idx.technical ? renderTechnicalChartSVG({ currentPrice: idx.technical.current_price, support: idx.technical.support, resistance: idx.technical.resistance, buyPrice: null, stopLossPrice: null, takeProfitLevels: [] }) : `<div class="empty-state">تعذر تحميل التحليل الفني</div>`;
-    return `<div class="card"><div class="head" style="display:flex; justify-content:space-between; align-items:center;"><strong>${escapeHtml(idx.name)}</strong>${recommendationBadgeHtml(rec ? rec.recommendation_type : null)}</div>${chartHtml}</div>`;
+    const latest = idx.latest_price;
+    const priceRowHtml = `<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin:10px 0;">
+      <div>
+        <div class="price">${latest ? fmtNum(latest.close) : "لا توجد بيانات سعر"}</div>
+        <div class="muted">${latest ? "بتاريخ " + escapeHtml(latest.date) : ""}</div>
+        ${priceChangesLineHtml(idx.price_changes)}
+      </div>
+      ${sparklineSVG(idx.recent_closes)}
+    </div>`;
+    return `<div class="card"><div class="head" style="display:flex; justify-content:space-between; align-items:center;"><strong>${escapeHtml(idx.name)}</strong>${recommendationBadgeHtml(rec ? rec.recommendation_type : null)}</div>${priceRowHtml}${chartHtml}</div>`;
   }).join("");
 }
 
