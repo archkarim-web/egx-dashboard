@@ -8,7 +8,7 @@ const LOGIC_TYPE_LABELS = { "فني": "فني", "مالي_أساسي": "مالي
 
 function escapeHtml(str) {
   if (str === null || str === undefined) return "";
-  return String(str).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  return String(str).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
 function fmtNum(v) {
   if (v === null || v === undefined || v === "" || v === "NA") return "—";
@@ -192,17 +192,39 @@ function renderLatestReport(data) {
 }
 
 // ---- التوصيات ----
-function computeSuccessRate(recs) {
-  const evaluated = recs.filter(r => r.outcome_status && r.outcome_status !== "pending");
-  const correct = evaluated.filter(r => r.outcome_status === "validated_correct").length;
-  const partial = evaluated.filter(r => r.outcome_status === "validated_partial").length;
-  const denom = evaluated.filter(r => r.outcome_status !== "not_applicable").length;
-  if (!denom) return null;
-  return Math.round(((correct + 0.5 * partial) / denom) * 1000) / 10;
+// تطوير 28-3: نسبة النجاح بعد المقيّم v2 — التأكيدات المتكررة (is_confirmation) مش بتتحسب، و"انتهى الأفق"
+// (expired) بيتحسب في المقام (مش بيتشال). نفس معادلة recommendation_evaluation.performance_stats في بايثون.
+function recSuccessStats(recs) {
+  const heads = (recs || []).filter(r => !r.is_confirmation);
+  const count = s => heads.filter(r => r.outcome_status === s).length;
+  const correct = count("validated_correct"), incorrect = count("validated_incorrect");
+  const partial = count("validated_partial"), expired = count("expired");
+  const denom = correct + incorrect + partial + expired;
+  return {
+    independent: heads.length, confirmations: (recs || []).length - heads.length, denom,
+    rate: denom ? Math.round(((correct + 0.5 * partial) / denom) * 1000) / 10 : null,
+  };
+}
+function computeSuccessRate(recs) { return recSuccessStats(recs).rate; }
+const OUTCOME_STATUS_LABELS = {
+  pending: "معلّقة ⏳", validated_correct: "صح ✅", validated_incorrect: "غلط ❌", validated_partial: "جزئي ⚠️",
+  expired: "انتهى الأفق ⌛", not_applicable: "مش بتتقيّم",
+};
+function outcomeCellHtml(r) {
+  if (r.is_confirmation) return `<span class="muted" title="${escapeHtml(r.outcome_notes || "")}">↻ تأكيد</span>`;
+  const label = OUTCOME_STATUS_LABELS[r.outcome_status || "pending"] || r.outcome_status;
+  return `<span title="${escapeHtml(r.outcome_notes || "")}">${escapeHtml(label)}</span>`;
+}
+function successCaption(recs) {
+  const st = recSuccessStats(recs);
+  let t = st.confirmations ? ` — ${st.independent} مستقلة و${st.confirmations} تأكيد` : "";
+  if (st.rate !== null) t += ` — نسبة نجاح ${st.rate}% من ${st.denom} محسومة`;
+  else t += " — لسه مفيش توصيات محسومة";
+  return t;
 }
 function recTable(recs) {
   if (!recs.length) return `<div class="empty-state">لا توجد توصيات مسجّلة في هذا النطاق</div>`;
-  const rows = [...recs].reverse().map(r => `<tr><td>${escapeHtml(r.generated_at || "—")}</td><td>${recommendationBadgeHtml(r.recommendation_type)}</td><td>${escapeHtml(r.confidence_level || "—")}</td><td>${escapeHtml(r.price_at_recommendation || "—")}</td><td>${escapeHtml(r.reasoning_summary || "—")}</td><td>${escapeHtml(r.outcome_status || "pending")}</td></tr>`).join("");
+  const rows = [...recs].reverse().map(r => `<tr><td>${escapeHtml(r.generated_at || "—")}</td><td>${recommendationBadgeHtml(r.recommendation_type)}</td><td>${escapeHtml(r.confidence_level || "—")}</td><td>${escapeHtml(r.price_at_recommendation || "—")}</td><td>${escapeHtml(r.reasoning_summary || "—")}</td><td>${outcomeCellHtml(r)}</td></tr>`).join("");
   return `<table><thead><tr><th>التاريخ</th><th>التوصية</th><th>الثقة</th><th>السعر وقتها</th><th>السبب</th><th>النتيجة</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 function performanceStatGridHtml(perfSummary) {
@@ -228,7 +250,7 @@ function entityCardHtml(entity, maxHistoryShown, cardIndex) {
   const recs = entity.recommendations || [];
   const latest = recs.length ? recs[recs.length - 1] : null;
   const successRate = computeSuccessRate(recs);
-  const rateText = successRate === null ? `لا يوجد عدد كافٍ من التوصيات المُقيَّمة بعد (${recs.length} توصية إجمالاً)` : `نسبة النجاح: <strong>${successRate}%</strong> (${recs.length} توصية إجمالاً)`;
+  const rateText = successRate === null ? `لا يوجد عدد كافٍ من التوصيات المحسومة بعد (${recs.length} توصية إجمالاً${successCaption(recs).split(" — لسه")[0]})` : `نسبة النجاح: <strong>${successRate}%</strong> (${recs.length} توصية إجمالاً${successCaption(recs).split(" — نسبة")[0]} — من ${recSuccessStats(recs).denom} محسومة)`;
   const chartHtml = entity.technical ? renderTechnicalChartSVG({ currentPrice: entity.technical.current_price, support: entity.technical.support, resistance: entity.technical.resistance, buyPrice: latest ? latest.buy_price : null, stopLossPrice: latest ? latest.stop_loss_price : null, takeProfitLevels: latest ? latest.take_profit_levels : [] }) : "";
   const latestHtml = latest ? `<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0 6px;">${recommendationBadgeHtml(latest.recommendation_type)}<span class="muted">${escapeHtml(latest.generated_at || "")}</span><span class="muted">الثقة: ${escapeHtml(latest.confidence_level || "—")}</span><span class="muted">السعر وقتها: ${escapeHtml(latest.price_at_recommendation || "—")}</span></div><div>${escapeHtml(latest.reasoning_summary || "")}</div>` : `<div class="empty-state">لا توجد توصيات مسجّلة بعد</div>`;
   const performanceHtml = entity.kind === "stock" ? performanceStatGridHtml(entity.performance) : "";
@@ -311,7 +333,7 @@ function renderPatterns(data) {
 // ---- المحفظة الافتراضية (تطوير 21) -- عرض فقط، بدون أي زرار أو فورم أو حقل إدخال، بلا أي fetch
 // لأي endpoint حي (كل شيء جاي من data.json الثابت زي باقي الصفحة) ----
 const ORDER_SIDE_LABELS = { buy: "شراء", sell: "بيع" };
-const ACTION_TYPE_LABELS = { buy_order: "أمر شراء", sell_order: "أمر بيع", cancel_order: "إلغاء أمر", liquidation: "تصفية" };
+const ACTION_TYPE_LABELS = { buy_order: "أمر شراء", sell_order: "أمر بيع", stop_order: "أمر وقف", cancel_order: "إلغاء أمر", buy_filled: "✅ تنفيذ شراء", sell_filled: "✅ تنفيذ بيع", stop_filled: "🛑 تنفيذ وقف", dividend: "💰 توزيعة", liquidation: "تصفية" };
 const PORTFOLIO_ARCHIVE_SHOWN = 15; // بدون زرار "عرض المزيد" -- أحدث 15 إجراء بس، والباقي كنص فقط
 
 function portfolioOverviewStatsHtml(ov) {
@@ -341,7 +363,7 @@ function portfolioOrdersTableHtml(orders) {
   if (!orders || !orders.length) return `<div class="empty-state">لا توجد أوامر معلقة حاليًا</div>`;
   const rows = orders.map(o => `<tr>
     <td>${escapeHtml(o.name)}</td><td>${escapeHtml(o.ticker)}</td>
-    <td>${escapeHtml(ORDER_SIDE_LABELS[o.side] || o.side)}</td><td>${escapeHtml(o.order_type || "—")}</td>
+    <td>${escapeHtml(o.order_kind === "stop" ? "وقف" : (ORDER_SIDE_LABELS[o.side] || o.side))}</td><td>${escapeHtml(o.order_type || "—")}</td>
     <td>${fmtNum(o.target_price)}</td><td>${fmtNum(o.quantity)}</td>
   </tr>`).join("");
   return `<table><thead><tr><th>السهم</th><th>الرمز</th><th>الاتجاه</th><th>نوع الأمر</th><th>السعر المستهدف</th><th>الكمية</th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -356,6 +378,8 @@ function portfolioTodayActionsHtml(today, summaryText, summaryDate) {
     portfolioActionsGroupHtml("أوامر الشراء", today.buy_orders),
     portfolioActionsGroupHtml("أوامر البيع", today.sell_orders),
     portfolioActionsGroupHtml("إلغاء أوامر", today.cancel_orders),
+    portfolioActionsGroupHtml("أوامر وقف", today.stop_orders),
+    portfolioActionsGroupHtml("اتنفذ في آخر جلسة", today.fills),
   ].join("");
   const summaryHtml = summaryText ? `<div class="muted" style="margin-top:10px;">ملخص أداء ${escapeHtml(summaryDate || "")}:</div><p>${escapeHtml(summaryText)}</p>` : "";
   if (!groups && !summaryHtml) return `<div class="empty-state">لا توجد إجراءات مسجّلة اليوم</div>`;
