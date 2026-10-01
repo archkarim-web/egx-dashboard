@@ -1,0 +1,90 @@
+/* واجهة المحفظة الافتراضية (1 أكتوبر 2026) — نفس الملف في الصفحة المحلية وموقع جت هب */
+.pv-root {
+  --pv-surface: var(--surface, #171a21); --pv-surface-2: var(--surface-2, #1f232c); --pv-border: var(--border, #2a2f3a);
+  --pv-text: var(--text, #e8eaed); --pv-dim: var(--text-dim, #9aa1ac); --pv-bg: var(--bg, #0f1115);
+  --pv-green: #35c46b; --pv-red: #f04a4a; --pv-blue: #4f8cff;
+  --t-spec: #f08c2e; --t-mid: #4f8cff; --t-long: #a77bf3; --t-none: #8a93a3; --pv-cash: #5b6474;
+}
+.pv-root .num { font-variant-numeric: tabular-nums; }
+.pv-root .pos { color: var(--pv-green); } .pv-root .neg { color: var(--pv-red); }
+.pv-root .muted { color: var(--pv-dim); font-size: 13px; }
+.pv-card { background: var(--pv-surface); border: 1px solid var(--pv-border); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+.pv-card h2 { margin: 0 0 10px; font-size: 17px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.pv-card h2 .count { font-size: 12px; color: var(--pv-dim); font-weight: 400; }
+.pv-empty { color: var(--pv-dim); padding: 22px; text-align: center; border: 1px dashed var(--pv-border); border-radius: 12px; font-size: 14px; }
+
+.pv-hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; align-items: center; }
+.pv-big { font-size: 34px; font-weight: 800; line-height: 1.2; }
+.pv-big small { font-size: 16px; color: var(--pv-dim); font-weight: 400; }
+.pv-delta { font-size: 16px; font-weight: 700; }
+.pv-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.pv-kpi { background: var(--pv-surface-2); border-radius: 10px; padding: 8px 10px; }
+.pv-kpi .l { font-size: 11px; color: var(--pv-dim); } .pv-kpi .v { font-size: 16px; font-weight: 700; }
+.pv-alloc { display: flex; height: 14px; border-radius: 7px; overflow: hidden; margin: 8px 0 6px; background: var(--pv-surface-2); }
+.pv-alloc span { display: block; height: 100%; }
+.pv-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--pv-dim); }
+.pv-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-inline-end: 4px; }
+.pv-meter { height: 8px; background: var(--pv-surface-2); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+.pv-meter > span { display: block; height: 100%; }
+
+.pv-chip { display: inline-block; padding: 1px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; vertical-align: middle; }
+.pv-c-مضاربة { background: rgba(240,140,46,.16); color: var(--t-spec); }
+.pv-c-متوسط { background: rgba(79,140,255,.16); color: var(--t-mid); }
+.pv-c-طويل { background: rgba(167,123,243,.16); color: var(--t-long); }
+.pv-c-none { background: var(--pv-surface-2); color: var(--t-none); }
+.pv-c-buy { background: rgba(53,196,107,.15); color: var(--pv-green); }
+.pv-c-sell { background: rgba(79,140,255,.15); color: var(--pv-blue); }
+.pv-c-stop { background: rgba(240,74,74,.15); color: var(--pv-red); }
+.pv-c-cancel { background: var(--pv-surface-2); color: var(--pv-dim); }
+
+.pv-summary { background: var(--pv-surface-2); border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-bottom: 10px; }
+.pv-steps { display: flex; flex-direction: column; gap: 8px; }
+.pv-step { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; background: var(--pv-surface-2);
+           border-radius: 10px; padding: 10px 12px; border-inline-start: 4px solid var(--pv-dim); }
+.pv-step.buy { border-color: var(--pv-green); } .pv-step.sell { border-color: var(--pv-blue); } .pv-step.stop { border-color: var(--pv-red); }
+.pv-step.cancel { opacity: .85; }
+.pv-step .n { width: 26px; height: 26px; border-radius: 50%; background: var(--pv-bg); display: grid; place-items: center; font-size: 13px; color: var(--pv-dim); }
+.pv-step .main { font-size: 15px; } .pv-step .main b { font-size: 16px; }
+.pv-step .sub { font-size: 12px; color: var(--pv-dim); }
+.pv-step .px { text-align: left; font-size: 16px; font-weight: 700; }
+.pv-step.cancel .main b, .pv-step.cancel .px { text-decoration: line-through; text-decoration-color: var(--pv-dim); }
+
+.pv-trades { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
+.pv-trade { background: var(--pv-surface-2); border-radius: 12px; padding: 12px 14px; border-top: 3px solid var(--t-none); }
+.pv-trade.t-مضاربة { border-top-color: var(--t-spec); } .pv-trade.t-متوسط { border-top-color: var(--t-mid); } .pv-trade.t-طويل { border-top-color: var(--t-long); }
+.pv-trade .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.pv-trade .name { font-weight: 700; font-size: 16px; } .pv-trade .tk { color: var(--pv-dim); font-size: 12px; font-weight: 400; }
+.pv-trade .pnl { text-align: left; font-weight: 800; font-size: 18px; white-space: nowrap; }
+.pv-trade .pnl .muted { font-weight: 400; font-size: 12px; display: block; }
+.pv-ladder { position: relative; height: 62px; margin: 18px 6px 4px; }
+.pv-ladder .track { position: absolute; top: 22px; left: 0; right: 0; height: 6px; border-radius: 3px;
+  background: linear-gradient(to left, rgba(240,74,74,.6), rgba(240,74,74,.15) 35%, rgba(53,196,107,.15) 55%, rgba(53,196,107,.6)); }
+.pv-mk { position: absolute; top: 14px; transform: translateX(50%); font-size: 11px; color: var(--pv-dim); white-space: nowrap; }
+.pv-mk i { display: block; width: 2px; height: 22px; margin: 0 auto; background: var(--pv-dim); }
+.pv-mk.stop i { background: var(--pv-red); } .pv-mk.tp i, .pv-mk.trail i { background: var(--pv-green); } .pv-mk.entry i { background: var(--pv-text); }
+.pv-mk .lb { position: absolute; top: 26px; left: 50%; transform: translateX(-50%); }
+.pv-mk.row2 .lb { top: 39px; }
+.pv-mk.now { top: 0; z-index: 2; }
+.pv-mk.now i { width: 13px; height: 13px; border-radius: 50%; background: var(--pv-text); border: 2px solid var(--pv-bg); margin-top: 16px; }
+.pv-mk.now .lb { top: -2px; color: var(--pv-text); font-weight: 700; }
+.pv-facts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--pv-dim); margin-top: 6px; }
+.pv-facts b { color: var(--pv-text); font-weight: 600; }
+.pv-legs { margin-top: 8px; font-size: 12px; }
+.pv-leg { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-bottom: 1px dashed var(--pv-border); }
+.pv-leg:last-child { border-bottom: none; }
+
+.pv-table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 0; }
+.pv-table th, .pv-table td { padding: 8px; text-align: right; border: none; border-bottom: 1px solid var(--pv-border); background: none; }
+.pv-table th { color: var(--pv-dim); font-weight: 600; font-size: 12px; }
+.pv-table .r { font-weight: 700; }
+
+@media (max-width: 720px) {
+  .pv-hero { grid-template-columns: 1fr; }
+  .pv-big { font-size: 28px; }
+  .pv-kpis { grid-template-columns: repeat(2, 1fr); }
+  .pv-trades { grid-template-columns: 1fr; }
+  .pv-table thead { display: none; }
+  .pv-table tr { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; padding: 10px 0; border-bottom: 1px solid var(--pv-border); }
+  .pv-table td { border: none; padding: 2px 0; }
+  .pv-table td[data-l]:not([data-l=""])::before { content: attr(data-l) " "; color: var(--pv-dim); font-size: 11px; }
+}
