@@ -406,9 +406,9 @@ function portfolioClosedLotsTableHtml(lots) {
 }
 function portfolioArchivedRoundsTableHtml(rounds) {
   if (!rounds || !rounds.length) return "";
-  const rows = rounds.map(r => `<tr><td>#${fmtNum(r.round_number)}</td><td>${escapeHtml(r.round_started_at || "—")}</td><td>${escapeHtml(r.round_ended_at || "—")}</td><td>${fmtNum(r.initial_capital)} ج.م</td><td>${fmtNum(r.final_cash)} ج.م</td><td>${fmtNum(r.closed_lots_count)}</td></tr>`).join("");
+  const rows = rounds.map(r => `<tr><td>#${fmtNum(r.round_number)}</td><td>${escapeHtml(String(r.round_started_at || "—").slice(0, 10))}</td><td>${escapeHtml(String(r.round_ended_at || "—").slice(0, 10))}</td><td>${fmtNum(r.initial_capital)} ج.م</td><td>${fmtNum(r.final_cash)} ج.م</td><td>${fmtNum(r.closed_lots_count)}</td></tr>`).join("");
   return `<div class="card">
-    <h3 style="margin-top:0;">جولات سابقة (قبل آخر تصفية)</h3>
+    <h2 style="margin:0 0 10px;font-size:17px;">🗂️ جولات سابقة</h2>
     <table><thead><tr><th>الجولة</th><th>البداية</th><th>النهاية</th><th>رأس المال الأولي</th><th>السيولة النهائية</th><th>عدد الصفقات المقفولة</th></tr></thead><tbody>${rows}</tbody></table>
   </div>`;
 }
@@ -418,6 +418,14 @@ function renderPortfolio(data) {
   const vp = data.virtual_portfolio;
   if (!vp || !vp.initialized) {
     container.innerHTML = `<div class="empty-state">المحفظة الافتراضية لسه مش مفعّلة.</div>`;
+    return;
+  }
+  // واجهة المحفظة الموحّدة (1 أكتوبر 2026): نفس عرض الصفحة المحلية (portfolio_view.js) + الجولات السابقة
+  if (vp.dashboard && window.PortfolioView) {
+    const d = vp.dashboard;
+    if (d.tonight) d.tonight.summary = d.tonight.summary || null;
+    window.PortfolioView.render(container, d, { public: true });
+    container.insertAdjacentHTML("beforeend", portfolioArchivedRoundsTableHtml(vp.archived_rounds));
     return;
   }
   const ov = vp.overview;
