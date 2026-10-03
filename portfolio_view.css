@@ -88,3 +88,5 @@
   .pv-table td { border: none; padding: 2px 0; }
   .pv-table td[data-l]:not([data-l=""])::before { content: attr(data-l) " "; color: var(--pv-dim); font-size: 11px; }
 }
+
+.pv-reversal { padding: 10px 14px; margin-bottom: 12px; border-radius: 8px; background: rgba(127,127,127,.10); font-size: .92rem; line-height: 1.7; }
