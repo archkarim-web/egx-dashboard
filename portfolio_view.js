@@ -125,7 +125,7 @@
       const legs = (tr.legs || []).map(g => {
         const left = (g.quantity || 0) - (g.filled_qty || 0);
         return g.status === "open"
-          ? `<div class="pv-leg"><span>⏳ جزء ${esc(g.leg)} — ${num(left, 0)} سهم · ${g.tp ? "هدف " + num(g.tp) : "متحرك"}</span><span class="muted">وقف ${num(g.stop)}</span></div>`
+          ? `<div class="pv-leg"><span>⏳ جزء ${esc(g.leg)} — ${num(left, 0)} سهم · ${g.hold ? "🌊 يكمّل لبعد النتائج" : (g.tp ? "هدف " + num(g.tp) : "متحرك")}</span><span class="muted">وقف ${num(g.stop)}</span></div>`
           : `<div class="pv-leg"><span>✅ جزء ${esc(g.leg)} — ${esc(g.exit_kind || "اتقفل")} ${g.filled_price ? "عند " + num(g.filled_price) : ""}</span><span class="${cls(g.r)}">${g.r !== null && g.r !== undefined ? signed(g.r, "R") : ""}</span></div>`;
       }).join("");
       const ts = tr.time_stop_sessions ? `<div class="muted" style="font-size:11px;margin-top:8px;">⏱️ وقف الوقت: جلسة ${num(tr.sessions_held || 0, 0)} من ${num(tr.time_stop_sessions, 0)}
@@ -144,6 +144,8 @@
           ${tr.realized_pnl ? `<span>محقق <b class="${cls(tr.realized_pnl)}">${signed(tr.realized_pnl, "", 0)}</b></span>` : ""}
           ${tr.breakeven_armed ? `<span>🔒 الوقف على التعادل</span>` : ""}${tr.rescue_used ? `<span>🛟 إنقاذ</span>` : ""}
           ${tr.dividend_due ? `<span>توزيعة مستحقة <b class="num">${num(tr.dividend_due, 0)}</b></span>` : ""}</div>
+        ${tr.trail_state ? `<div class="muted" style="font-size:11px;margin-top:6px;">🔁 الوقف المتحرك: ${esc(tr.trail_state.state)} (${num(tr.trail_state.k)}×ATR) — ${esc(tr.trail_state.reason || "")}</div>` : ""}
+        ${tr.results ? `<div class="muted" style="font-size:11px;margin-top:4px;">📊 نتائج ${esc(tr.results.period || "")}: ${(tr.results.status || {}).published ? "اتنشرت" + ((tr.results.status || {}).published_source ? " (" + esc(tr.results.status.published_source) + ")" : "") : "لسه — الموسم لحد " + esc(tr.results.season_end || "")}${tr.results.verdict ? " · الحكم: " + esc(tr.results.verdict) + (tr.results.verdict_basis ? " (" + esc(tr.results.verdict_basis) + ")" : "") : ""}</div>` : ""}
         ${legs ? `<div class="pv-legs">${legs}</div>` : ""}${ts}</div>`;
     }).join("")}</div>` : `<div class="pv-empty">مفيش صفقات مفتوحة دلوقتي</div>`;
     return `<div class="pv-card"><h2>📈 الصفقات المفتوحة <span class="count">— ${list.length}</span></h2>${body}</div>`;
@@ -182,7 +184,10 @@
     if (!el) return;
     if (!d) { el.innerHTML = `<div class="pv-empty">مفيش بيانات للمحفظة</div>`; return; }
     el.classList.add("pv-root");
-    el.innerHTML = hero(d) + tonight(d, opts) + trades(d) + pendingBuys(d) + closed(d);
+    const rv = d.market_reversal;
+    const rvColor = !rv ? "" : (rv.state === "فشل" ? "var(--bad, #c0392b)" : "var(--good, #1e8e5a)");
+    const rvHtml = rv ? `<div class="pv-reversal" style="border-inline-start:4px solid ${rvColor}">${esc(rv.note)}</div>` : "";
+    el.innerHTML = rvHtml + hero(d) + tonight(d, opts) + trades(d) + pendingBuys(d) + closed(d);
   }
   window.PortfolioView = { render, chip, esc, num };
 })();
